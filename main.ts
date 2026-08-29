@@ -178,6 +178,8 @@ export default class GoBoardViewerPlugin extends Plugin {
 		}
 
 		return result;
+	}
+
 	private normalizePointValues(values: string | string[] | undefined): string[] {
 		if (!values) {
 			return [];
