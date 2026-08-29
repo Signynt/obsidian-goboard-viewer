@@ -142,6 +142,42 @@ export default class GoBoardViewerPlugin extends Plugin {
 		return String.fromCharCode(97 + x) + String.fromCharCode(97 + y);
 	}
 
+	private getMarkupLines(nodeData: Record<string, string[] | string> = {}): Array<{ type: 'line' | 'arrow'; v1: [number, number]; v2: [number, number] }> {
+		const result: Array<{ type: 'line' | 'arrow'; v1: [number, number]; v2: [number, number] }> = [];
+		const markupByType: Record<'line' | 'arrow', string[] | string | undefined> = {
+			line: nodeData.LN,
+			arrow: nodeData.AR
+		};
+
+		for (const [type, value] of Object.entries(markupByType) as Array<[ 'line' | 'arrow', string[] | string | undefined ]>) {
+			const entries = Array.isArray(value) ? value : value ? [value] : [];
+
+			for (const entry of entries) {
+				if (!entry) {
+					continue;
+				}
+
+				const points = String(entry).split(':');
+				if (points.length !== 2) {
+					continue;
+				}
+
+				const [fromPoint, toPoint] = points;
+				const from = this.point2vertex(fromPoint);
+				const to = this.point2vertex(toPoint);
+				if (from.x < 0 || from.y < 0 || to.x < 0 || to.y < 0) {
+					continue;
+				}
+
+				result.push({
+					type,
+					v1: [from.x, from.y],
+					v2: [to.x, to.y]
+				});
+			}
+		}
+
+		return result;
 	private normalizePointValues(values: string | string[] | undefined): string[] {
 		if (!values) {
 			return [];
@@ -1576,6 +1612,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 				// Render Goban
 				// Get SGF markers for current position
 				const markerMap = getSGFMarkers();
+				const markupLines = this.getMarkupLines(currentNode.data || {});
 
 				// Create empty paint map
 				const emptyPaintMap: (0 | 1 | -1)[][] = [];
@@ -1590,6 +1627,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 					dimmedVertices: [],
 					markerMap: markerMap,
 					paintMap: emptyPaintMap,
+					lines: markupLines,
 					rangeX: visibleRangeX,
 					rangeY: visibleRangeY,
 					showCoordinates: true,
