@@ -106,6 +106,26 @@ body {
   stroke: var(--goboard-line-color) !important;
 }
 
+/* SGF markup lines and arrows */
+.goboard-display .shudan-line,
+.goboard-display .shudan-arrow,
+.goboard-display .shudan-goban svg path.shudan-line,
+.goboard-display .shudan-goban svg path.shudan-arrow,
+.goboard-display .shudan-goban svg line.line,
+.goboard-display .shudan-goban svg line.arrow {
+  fill: none;
+  stroke: var(--goboard-marker-color);
+  stroke-width: 3px;
+  stroke-linecap: round;
+}
+
+.goboard-display .goboard-svg-defs,
+.goboard-display .goboard-svg-defs marker,
+.goboard-display .goboard-svg-defs marker path {
+  fill: var(--goboard-marker-color);
+  stroke: var(--goboard-marker-color);
+}
+
 /* Board grid lines (rect elements) */
 .goboard-display .shudan-grid .shudan-gridline,
 .goboard-display svg.shudan-grid rect.shudan-gridline {
