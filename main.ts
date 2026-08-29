@@ -102,6 +102,105 @@ export default class GoBoardViewerPlugin extends Plugin {
 	}
 
 	/**
+	 * Convert SGF coordinate point like 'aa' or 'sj' to zero-based board indices.
+	 * SGF uses lowercase letters a-s for 19x19 boards, so 'a' => 0 and 's' => 18.
+	 */
+	private pointToIndex(point: string): { x: number; y: number } | null {
+		if (!point || point.length < 2) {
+			return null;
+		}
+
+		const normalized = point.toLowerCase();
+		const x = normalized.charCodeAt(0) - 97;
+		const y = normalized.charCodeAt(1) - 97;
+
+		if (x < 0 || y < 0) {
+			return null;
+		}
+
+		return { x, y };
+	}
+
+	/**
+	 * Parse SGF VW property values.
+	 * Supported formats:
+	 * - VW[aa:sj] => range from top-left aa to bottom-right sj
+	 * - VW[aa][sj] => bounding box covering both points
+	 * - VW[] or no property => full board
+	 */
+	private parseViewWindow(value: string | string[] | undefined): { rangeX: [number, number]; rangeY: [number, number] } | null {
+		if (value === undefined || value === null) {
+			return null;
+		}
+
+		const values = Array.isArray(value) ? value : [value];
+		const trimmedValues = values
+			.filter((entry): entry is string => typeof entry === 'string')
+			.map((entry) => entry.trim())
+			.filter((entry) => entry.length > 0);
+
+		if (trimmedValues.length === 0) {
+			return null;
+		}
+
+		const firstValue = trimmedValues[0];
+		let points: string[] = [];
+
+		if (firstValue.includes(':')) {
+			points = firstValue.split(':').filter((point) => point.length >= 2);
+		} else {
+			points = trimmedValues.slice(0, 2).filter((point) => point.length >= 2);
+		}
+
+		if (points.length === 0) {
+			return null;
+		}
+
+		const firstPoint = this.pointToIndex(points[0]);
+		const secondPoint = this.pointToIndex(points[1] || points[0]);
+		if (!firstPoint || !secondPoint) {
+			return null;
+		}
+
+		const minX = Math.min(firstPoint.x, secondPoint.x);
+		const maxX = Math.max(firstPoint.x, secondPoint.x);
+		const minY = Math.min(firstPoint.y, secondPoint.y);
+		const maxY = Math.max(firstPoint.y, secondPoint.y);
+
+		return {
+			rangeX: [minX, maxX],
+			rangeY: [minY, maxY]
+		};
+	}
+
+	/**
+	 * Resolve the effective visible range from the SGF VW property.
+	 * Current node overrides the root, and an empty VW means full board.
+	 */
+	private getViewRange(rootNode: SGFNode | undefined, currentNode: SGFNode | undefined, boardSize: number): { rangeX: [number, number]; rangeY: [number, number] } {
+		const fullRange: [number, number] = [0, boardSize - 1];
+		const nodeOrder = [currentNode, rootNode];
+
+		for (const node of nodeOrder) {
+			if (!node || !node.data || node.data.VW === undefined) {
+				continue;
+			}
+
+			const parsed = this.parseViewWindow(node.data.VW);
+			if (!parsed) {
+				return { rangeX: fullRange, rangeY: fullRange };
+			}
+
+			return {
+				rangeX: [Math.max(0, parsed.rangeX[0]), Math.min(boardSize - 1, parsed.rangeX[1])],
+				rangeY: [Math.max(0, parsed.rangeY[0]), Math.min(boardSize - 1, parsed.rangeY[1])]
+			};
+		}
+
+		return { rangeX: fullRange, rangeY: fullRange };
+	}
+
+	/**
 	 * Handle vertex click in edit mode - add a move or marker depending on mode
 	 * Returns the new move number if a move was added to the main line, otherwise null
 	 */
@@ -1397,6 +1496,11 @@ export default class GoBoardViewerPlugin extends Plugin {
 					hasVariations = Boolean(moveNode.node && moveNode.node.children && moveNode.node.children.length > 1);
 				}
 
+				// Resolve current view/crop from the SGF VW property.
+				const viewRange = this.getViewRange(rootNode, currentNode, boardSize);
+				const visibleRangeX = viewRange.rangeX;
+				const visibleRangeY = viewRange.rangeY;
+
 				// Render Goban
 				// Get SGF markers for current position
 				const markerMap = getSGFMarkers();
@@ -1414,6 +1518,8 @@ export default class GoBoardViewerPlugin extends Plugin {
 					dimmedVertices: [],
 					markerMap: markerMap,
 					paintMap: emptyPaintMap,
+					rangeX: visibleRangeX,
+					rangeY: visibleRangeY,
 					showCoordinates: true,
 					busy: false,
 					fuzzyStonePlacement: false,
