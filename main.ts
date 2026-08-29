@@ -38,6 +38,47 @@ interface MarkerData {
 	label?: string;
 }
 
+function expandSgfPoints(values: string[]): string[] {
+	const result: string[] = [];
+
+	for (const value of values) {
+		if (!value || value === '') {
+			continue;
+		}
+
+		const normalized = value.toLowerCase();
+		if (normalized.includes(':')) {
+			const [start, end] = normalized.split(':');
+			if (!start || !end || start.length < 2 || end.length < 2) {
+				continue;
+			}
+
+			const startX = start.charCodeAt(0) - 97;
+			const startY = start.charCodeAt(1) - 97;
+			const endX = end.charCodeAt(0) - 97;
+			const endY = end.charCodeAt(1) - 97;
+
+			const minX = Math.min(startX, endX);
+			const maxX = Math.max(startX, endX);
+			const minY = Math.min(startY, endY);
+			const maxY = Math.max(startY, endY);
+
+			for (let x = minX; x <= maxX; x++) {
+				for (let y = minY; y <= maxY; y++) {
+					result.push(String.fromCharCode(97 + x) + String.fromCharCode(97 + y));
+				}
+			}
+			continue;
+		}
+
+		if (normalized.length >= 2) {
+			result.push(normalized);
+		}
+	}
+
+	return result;
+}
+
 // View for displaying SGF files
 class SGFView extends FileView {
 	plugin: GoBoardViewerPlugin;
@@ -99,6 +140,15 @@ export default class GoBoardViewerPlugin extends Plugin {
 	private vertex2point(vertex: [number, number]): string {
 		const [x, y] = vertex;
 		return String.fromCharCode(97 + x) + String.fromCharCode(97 + y);
+	}
+
+	private normalizePointValues(values: string | string[] | undefined): string[] {
+		if (!values) {
+			return [];
+		}
+
+		const normalizedValues = Array.isArray(values) ? values : [values];
+		return expandSgfPoints(normalizedValues.filter((value): value is string => typeof value === 'string'));
 	}
 
 	/**
@@ -1094,7 +1144,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 				// Process SGF marker properties
 				// TR - Triangle
 				if (currentNodeData.TR) {
-					const triangles = Array.isArray(currentNodeData.TR) ? currentNodeData.TR : [currentNodeData.TR];
+					const triangles = this.normalizePointValues(currentNodeData.TR);
 					triangles.forEach((point: string) => {
 						const coords = this.point2vertex(point);
 						if (coords.x >= 0 && coords.y >= 0 && coords.x < boardSize && coords.y < boardSize) {
@@ -1105,7 +1155,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 
 				// SQ - Square
 				if (currentNodeData.SQ) {
-					const squares = Array.isArray(currentNodeData.SQ) ? currentNodeData.SQ : [currentNodeData.SQ];
+					const squares = this.normalizePointValues(currentNodeData.SQ);
 					squares.forEach((point: string) => {
 						const coords = this.point2vertex(point);
 						if (coords.x >= 0 && coords.y >= 0 && coords.x < boardSize && coords.y < boardSize) {
@@ -1116,7 +1166,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 
 				// CR - Circle
 				if (currentNodeData.CR) {
-					const circles = Array.isArray(currentNodeData.CR) ? currentNodeData.CR : [currentNodeData.CR];
+					const circles = this.normalizePointValues(currentNodeData.CR);
 					circles.forEach((point: string) => {
 						const coords = this.point2vertex(point);
 						if (coords.x >= 0 && coords.y >= 0 && coords.x < boardSize && coords.y < boardSize) {
@@ -1127,11 +1177,33 @@ export default class GoBoardViewerPlugin extends Plugin {
 
 				// MA - Mark (X) - these override last move markers
 				if (currentNodeData.MA) {
-					const marks = Array.isArray(currentNodeData.MA) ? currentNodeData.MA : [currentNodeData.MA];
+					const marks = this.normalizePointValues(currentNodeData.MA);
 					marks.forEach((point: string) => {
 						const coords = this.point2vertex(point);
 						if (coords.x >= 0 && coords.y >= 0 && coords.x < boardSize && coords.y < boardSize) {
 							markerMap[coords.y][coords.x] = { type: 'point' };
+						}
+					});
+				}
+
+				// SL - Select points
+				if (currentNodeData.SL) {
+					const selectedPoints = this.normalizePointValues(currentNodeData.SL);
+					selectedPoints.forEach((point: string) => {
+						const coords = this.point2vertex(point);
+						if (coords.x >= 0 && coords.y >= 0 && coords.x < boardSize && coords.y < boardSize) {
+							markerMap[coords.y][coords.x] = { type: 'cross' };
+						}
+					});
+				}
+
+				// DD - Dim points
+				if (currentNodeData.DD) {
+					const dimmedPoints = this.normalizePointValues(currentNodeData.DD);
+					dimmedPoints.forEach((point: string) => {
+						const coords = this.point2vertex(point);
+						if (coords.x >= 0 && coords.y >= 0 && coords.x < boardSize && coords.y < boardSize) {
+							markerMap[coords.y][coords.x] = { type: 'loader' };
 						}
 					});
 				}
@@ -1264,7 +1336,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 
 				// AB - Add Black stones (setup)
 				if (rootData.AB) {
-					const blackStones = Array.isArray(rootData.AB) ? rootData.AB : [rootData.AB];
+					const blackStones = this.normalizePointValues(rootData.AB);
 					blackStones.forEach((point: string) => {
 						const coords = this.point2vertex(point);
 						if (coords.x >= 0 && coords.y >= 0 && coords.x < boardSize && coords.y < boardSize) {
@@ -1275,7 +1347,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 
 				// AW - Add White stones (setup)
 				if (rootData.AW) {
-					const whiteStones = Array.isArray(rootData.AW) ? rootData.AW : [rootData.AW];
+					const whiteStones = this.normalizePointValues(rootData.AW);
 					whiteStones.forEach((point: string) => {
 						const coords = this.point2vertex(point);
 						if (coords.x >= 0 && coords.y >= 0 && coords.x < boardSize && coords.y < boardSize) {
@@ -1286,7 +1358,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 
 				// AE - Add Empty (remove stones in setup)
 				if (rootData.AE) {
-					const emptyPoints = Array.isArray(rootData.AE) ? rootData.AE : [rootData.AE];
+					const emptyPoints = this.normalizePointValues(rootData.AE);
 					emptyPoints.forEach((point: string) => {
 						const coords = this.point2vertex(point);
 						if (coords.x >= 0 && coords.y >= 0 && coords.x < boardSize && coords.y < boardSize) {
@@ -1324,7 +1396,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 
 					// Setup stones in move nodes (AB/AW/AE)
 					if (data.AB) {
-						const blackStones = Array.isArray(data.AB) ? data.AB : [data.AB];
+						const blackStones = this.normalizePointValues(data.AB);
 						blackStones.forEach((point: string) => {
 							const coords = this.point2vertex(point);
 							if (coords.x >= 0 && coords.y >= 0 && coords.x < boardSize && coords.y < boardSize) {
@@ -1334,7 +1406,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 					}
 
 					if (data.AW) {
-						const whiteStones = Array.isArray(data.AW) ? data.AW : [data.AW];
+						const whiteStones = this.normalizePointValues(data.AW);
 						whiteStones.forEach((point: string) => {
 							const coords = this.point2vertex(point);
 							if (coords.x >= 0 && coords.y >= 0 && coords.x < boardSize && coords.y < boardSize) {
@@ -1344,7 +1416,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 					}
 
 					if (data.AE) {
-						const emptyPoints = Array.isArray(data.AE) ? data.AE : [data.AE];
+						const emptyPoints = this.normalizePointValues(data.AE);
 						emptyPoints.forEach((point: string) => {
 							const coords = this.point2vertex(point);
 							if (coords.x >= 0 && coords.y >= 0 && coords.x < boardSize && coords.y < boardSize) {
