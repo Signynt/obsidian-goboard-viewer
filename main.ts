@@ -2092,23 +2092,26 @@ export default class GoBoardViewerPlugin extends Plugin {
 				return btn;
 			};
 
-			const btnFirst = createButton(this.settings.compactControls ? '⇤' : '⇤ First', () => {
+			const PREVIOUS_ICON = '\u23EE\uFE0E';
+			const NEXT_ICON = '\u23ED\uFE0E';
+
+			const btnFirst = createButton(this.settings.compactControls ? PREVIOUS_ICON : '⏮ First', () => {
 				moveNumber = 0;
 			});
 			btnFirst.title = 'First';
 
-			const btnPrev = createButton(this.settings.compactControls ? '⟨' : '⟨ Prev', () => {
+			const btnPrev = createButton(this.settings.compactControls ? '❮' : '❮ Prev', () => {
 				if (moveNumber > 0) moveNumber--;
 			});
 			btnPrev.title = 'Previous';
 
-			const btnNext = createButton(this.settings.compactControls ? '⟩' : '⟩ Next', () => {
+			const btnNext = createButton(this.settings.compactControls ? '❯' : '❯ Next', () => {
 				const totalMoves = allMoves ? allMoves.length : 0;
 				if (moveNumber < totalMoves) moveNumber++;
 			});
 			btnNext.title = 'Next';
 
-			const btnLast = createButton(this.settings.compactControls ? '⇥' : '⇥ Last', () => {
+			const btnLast = createButton(this.settings.compactControls ? NEXT_ICON : '⏭ Last', () => {
 				moveNumber = allMoves ? allMoves.length : 0;
 			});
 			btnLast.title = 'Last';
