@@ -11,6 +11,7 @@ interface GoBoardSettings {
 	coordinateColor: string;
 	markerColor: string;
 	variationColor: string;
+	compactControls: boolean;
 }
 
 const DEFAULT_SETTINGS: GoBoardSettings = {
@@ -18,7 +19,8 @@ const DEFAULT_SETTINGS: GoBoardSettings = {
 	lineColor: '#000000',
 	coordinateColor: '#333333',
 	markerColor: '#FF0000',
-	variationColor: '#2196F3'
+	variationColor: '#2196F3',
+	compactControls: false
 };
 
 // Type definitions for SGF library
@@ -1064,6 +1066,9 @@ export default class GoBoardViewerPlugin extends Plugin {
 			// Create controls container
 			const controlsContainer = document.createElement('div');
 			controlsContainer.className = 'goboard-controls';
+			if (this.settings.compactControls) {
+				controlsContainer.classList.add('goboard-controls-compact');
+			}
 			wrapper.appendChild(controlsContainer);
 
 			// Create comment display container (will be updated in renderBoard)
@@ -1727,23 +1732,33 @@ export default class GoBoardViewerPlugin extends Plugin {
 				// Update info display
 				const totalMoves = allMoves ? allMoves.length : 0;
 
-				const existingInfo = controlsContainer.querySelector('.goboard-info');
-				if (existingInfo) {
-					existingInfo.remove();
+				if (this.settings.compactControls) {
+					const moveIndicator = controlsContainer.querySelector('.goboard-move-indicator');
+					if (moveIndicator) {
+						const moveIndicatorEl = moveIndicator as HTMLElement;
+						moveIndicatorEl.textContent = `${moveNumber}/${totalMoves}`;
+						moveIndicatorEl.title = `${moveNumber}/${totalMoves}`;
+						moveIndicatorEl.classList.toggle('has-variations', hasVariations);
+					}
+				} else {
+					const existingInfo = controlsContainer.querySelector('.goboard-info');
+					if (existingInfo) {
+						existingInfo.remove();
+					}
+
+					const infoDiv = controlsContainer.createDiv({ cls: 'goboard-info' })
+					const moveDiv = infoDiv.createDiv();
+					const moveLabelStrong = moveDiv.createEl('strong');
+					moveLabelStrong.textContent = 'Move:';
+					moveDiv.appendText(` ${moveNumber} / ${totalMoves}`);
+
+					if (hasVariations) {
+						const variationSpan = moveDiv.createSpan({ cls: 'variation-indicator' })
+						variationSpan.textContent = '(has variations)';
+					}
+
+					controlsContainer.insertBefore(infoDiv, controlsContainer.firstChild);
 				}
-
-				const infoDiv = controlsContainer.createDiv({ cls: 'goboard-info' })
-				const moveDiv = infoDiv.createDiv();
-				const moveLabelStrong = moveDiv.createEl('strong');
-				moveLabelStrong.textContent = 'Move:';
-				moveDiv.appendText(` ${moveNumber} / ${totalMoves}`);
-
-				if (hasVariations) {
-					const variationSpan = moveDiv.createSpan({ cls: 'variation-indicator' })
-					variationSpan.textContent = '(has variations)';
-				}
-
-				controlsContainer.insertBefore(infoDiv, controlsContainer.firstChild);
 
 				// Update comment display in separate container (below controls)
 				commentDisplayContainer.empty();
@@ -2077,25 +2092,38 @@ export default class GoBoardViewerPlugin extends Plugin {
 				return btn;
 			};
 
-			const btnFirst = createButton('⏮ First', () => {
+			const btnFirst = createButton(this.settings.compactControls ? '⇤' : '⇤ First', () => {
 				moveNumber = 0;
 			});
+			btnFirst.title = 'First';
 
-			const btnPrev = createButton('◀ Prev', () => {
+			const btnPrev = createButton(this.settings.compactControls ? '⟨' : '⟨ Prev', () => {
 				if (moveNumber > 0) moveNumber--;
 			});
+			btnPrev.title = 'Previous';
 
-			const btnNext = createButton('▶ Next', () => {
+			const btnNext = createButton(this.settings.compactControls ? '⟩' : '⟩ Next', () => {
 				const totalMoves = allMoves ? allMoves.length : 0;
 				if (moveNumber < totalMoves) moveNumber++;
 			});
+			btnNext.title = 'Next';
 
-			const btnLast = createButton('⏭ Last', () => {
+			const btnLast = createButton(this.settings.compactControls ? '⇥' : '⇥ Last', () => {
 				moveNumber = allMoves ? allMoves.length : 0;
 			});
+			btnLast.title = 'Last';
 
 			const btnContainer = document.createElement('div');
 			btnContainer.className = 'goboard-btn-group';
+			let moveIndicator: HTMLDivElement | null = null;
+			if (this.settings.compactControls) {
+				btnContainer.classList.add('goboard-btn-group-compact');
+				moveIndicator = document.createElement('div');
+				moveIndicator.className = 'goboard-move-indicator';
+				moveIndicator.textContent = '0 / 0';
+				moveIndicator.title = 'Move';
+				btnContainer.appendChild(moveIndicator);
+			}
 			btnContainer.appendChild(btnFirst);
 			btnContainer.appendChild(btnPrev);
 			btnContainer.appendChild(btnNext);
@@ -2104,33 +2132,31 @@ export default class GoBoardViewerPlugin extends Plugin {
 			controlsContainer.appendChild(btnContainer);
 
 			// Add auto-play controls (only in viewer mode, not in edit mode)
-			// Place them above the board in the placeholder container
+			// In compact mode, place the autoplay button directly in the main control bar.
 			if (!editMode) {
 				let autoPlayInterval: ReturnType<typeof setInterval> | null = null;
 				let isPlaying = false;
 				let autoPlaySpeed = 2; // default 2 seconds per move
 
-				const autoPlayContainer = document.createElement('div');
-				autoPlayContainer.className = 'goboard-autoplay-controls';
+				const PLAY_ICON = '\u25B6\uFE0E';
+				const PAUSE_ICON = '\u23F8\uFE0E';
 
-				// Auto-play button
 				const btnAutoPlay = document.createElement('button');
 				btnAutoPlay.className = 'goboard-btn goboard-btn-autoplay';
-				btnAutoPlay.textContent = '▶ auto play';
+				btnAutoPlay.textContent = this.settings.compactControls ? PLAY_ICON : '▶ auto play';
+				btnAutoPlay.title = 'Auto play';
 				btnAutoPlay.onclick = () => {
 					if (isPlaying) {
-						// Stop auto-play
 						if (autoPlayInterval) {
 							clearInterval(autoPlayInterval);
 							autoPlayInterval = null;
 						}
 						isPlaying = false;
-						btnAutoPlay.textContent = '▶ auto play';
+						btnAutoPlay.textContent = this.settings.compactControls ? PLAY_ICON : '▶ auto play';
 						btnAutoPlay.classList.remove('playing');
 					} else {
-						// Start auto-play
 						isPlaying = true;
-						btnAutoPlay.textContent = '⏸ pause';
+						btnAutoPlay.textContent = this.settings.compactControls ? PAUSE_ICON : '⏸ pause';
 						btnAutoPlay.classList.add('playing');
 
 						autoPlayInterval = setInterval(() => {
@@ -2139,73 +2165,76 @@ export default class GoBoardViewerPlugin extends Plugin {
 								moveNumber++;
 								renderBoard();
 							} else {
-								// Reached the end, stop auto-play
 								if (autoPlayInterval) {
 									clearInterval(autoPlayInterval);
 									autoPlayInterval = null;
 								}
 								isPlaying = false;
-								btnAutoPlay.textContent = '▶ auto play';
+								btnAutoPlay.textContent = this.settings.compactControls ? PLAY_ICON : '▶ auto play';
 								btnAutoPlay.classList.remove('playing');
 							}
 						}, autoPlaySpeed * 1000);
 					}
 				};
 
-				// Speed selector
-				const speedLabel = document.createElement('label');
-				speedLabel.className = 'goboard-autoplay-label';
-				speedLabel.textContent = 'Speed:';
+				if (this.settings.compactControls) {
+					btnContainer.insertBefore(btnAutoPlay, moveIndicator ?? btnContainer.firstChild);
+				} else {
+					const autoPlayContainer = document.createElement('div');
+					autoPlayContainer.className = 'goboard-autoplay-controls';
 
-				const speedSelect = document.createElement('select');
-				speedSelect.className = 'goboard-autoplay-speed';
-				const speeds = [
-					{ value: 1, label: '1 sec/move' },
-					{ value: 2, label: '2 sec/move' },
-					{ value: 3, label: '3 sec/move' },
-					{ value: 5, label: '5 sec/move' },
-					{ value: 10, label: '10 sec/move' }
-				];
+					// Speed selector
+					const speedLabel = document.createElement('label');
+					speedLabel.className = 'goboard-autoplay-label';
+					speedLabel.textContent = 'Speed:';
 
-				speeds.forEach(speed => {
-					const option = document.createElement('option');
-					option.value = String(speed.value);
-					option.textContent = speed.label;
-					if (speed.value === autoPlaySpeed) {
-						option.selected = true;
-					}
-					speedSelect.appendChild(option);
-				});
+					const speedSelect = document.createElement('select');
+					speedSelect.className = 'goboard-autoplay-speed';
+					const speeds = [
+						{ value: 1, label: '1 sec/move' },
+						{ value: 2, label: '2 sec/move' },
+						{ value: 3, label: '3 sec/move' },
+						{ value: 5, label: '5 sec/move' },
+						{ value: 10, label: '10 sec/move' }
+					];
 
-				speedSelect.onchange = () => {
-					autoPlaySpeed = parseInt(speedSelect.value);
-					// If currently playing, restart with new speed
-					if (isPlaying && autoPlayInterval) {
-						clearInterval(autoPlayInterval);
-						autoPlayInterval = setInterval(() => {
-							const totalMoves = allMoves ? allMoves.length : 0;
-							if (moveNumber < totalMoves) {
-								moveNumber++;
-								renderBoard();
-							} else {
-								if (autoPlayInterval) {
-									clearInterval(autoPlayInterval);
-									autoPlayInterval = null;
+					speeds.forEach(speed => {
+						const option = document.createElement('option');
+						option.value = String(speed.value);
+						option.textContent = speed.label;
+						if (speed.value === autoPlaySpeed) {
+							option.selected = true;
+						}
+						speedSelect.appendChild(option);
+					});
+
+					speedSelect.onchange = () => {
+						autoPlaySpeed = parseInt(speedSelect.value);
+						if (isPlaying && autoPlayInterval) {
+							clearInterval(autoPlayInterval);
+							autoPlayInterval = setInterval(() => {
+								const totalMoves = allMoves ? allMoves.length : 0;
+								if (moveNumber < totalMoves) {
+									moveNumber++;
+									renderBoard();
+								} else {
+									if (autoPlayInterval) {
+										clearInterval(autoPlayInterval);
+										autoPlayInterval = null;
+									}
+									isPlaying = false;
+									btnAutoPlay.textContent = this.settings.compactControls ? PLAY_ICON : '▶ auto play';
+									btnAutoPlay.classList.remove('playing');
 								}
-								isPlaying = false;
-								btnAutoPlay.textContent = '▶ auto play';
-								btnAutoPlay.classList.remove('playing');
-							}
-						}, autoPlaySpeed * 1000);
-					}
-				};
+							}, autoPlaySpeed * 1000);
+						}
+					};
 
-				autoPlayContainer.appendChild(btnAutoPlay);
-				autoPlayContainer.appendChild(speedLabel);
-				autoPlayContainer.appendChild(speedSelect);
-
-				// Add to placeholder above the board
-				autoPlayContainerPlaceholder.appendChild(autoPlayContainer);
+					autoPlayContainer.appendChild(btnAutoPlay);
+					autoPlayContainer.appendChild(speedLabel);
+					autoPlayContainer.appendChild(speedSelect);
+					autoPlayContainerPlaceholder.appendChild(autoPlayContainer);
+				}
 			}
 
 			// Initial render
@@ -2307,6 +2336,16 @@ class GoBoardSettingTab extends PluginSettingTab {
 			.setHeading();
 
 		new Setting(containerEl)
+			.setName('Compact control bar')
+			.setDesc('Use a compact single-row control bar with icon-only navigation and autoplay controls.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.compactControls)
+				.onChange(async (value) => {
+					this.plugin.settings.compactControls = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
 			.setName('Board background color')
 			.setDesc('Color of the go board background')
 			.addColorPicker(color => color
@@ -2367,6 +2406,7 @@ class GoBoardSettingTab extends PluginSettingTab {
 					this.plugin.settings.coordinateColor = DEFAULT_SETTINGS.coordinateColor;
 					this.plugin.settings.markerColor = DEFAULT_SETTINGS.markerColor;
 					this.plugin.settings.variationColor = DEFAULT_SETTINGS.variationColor;
+					this.plugin.settings.compactControls = DEFAULT_SETTINGS.compactControls;
 					await this.plugin.saveSettings();
 					this.display(); // Refresh the settings display
 				}));
