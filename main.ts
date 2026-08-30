@@ -2095,7 +2095,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 			const PREVIOUS_ICON = '\u23EE\uFE0E';
 			const NEXT_ICON = '\u23ED\uFE0E';
 
-			const btnFirst = createButton(this.settings.compactControls ? PREVIOUS_ICON : '⏮ First', () => {
+			const btnFirst = createButton(this.settings.compactControls ? PREVIOUS_ICON : PREVIOUS_ICON + ' First', () => {
 				moveNumber = 0;
 			});
 			btnFirst.title = 'First';
@@ -2111,7 +2111,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 			});
 			btnNext.title = 'Next';
 
-			const btnLast = createButton(this.settings.compactControls ? NEXT_ICON : '⏭ Last', () => {
+			const btnLast = createButton(this.settings.compactControls ? NEXT_ICON : NEXT_ICON + ' Last', () => {
 				moveNumber = allMoves ? allMoves.length : 0;
 			});
 			btnLast.title = 'Last';
@@ -2146,7 +2146,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 
 				const btnAutoPlay = document.createElement('button');
 				btnAutoPlay.className = 'goboard-btn goboard-btn-autoplay';
-				btnAutoPlay.textContent = this.settings.compactControls ? PLAY_ICON : '▶ auto play';
+				btnAutoPlay.textContent = this.settings.compactControls ? PLAY_ICON : PLAY_ICON + ' auto play';
 				btnAutoPlay.title = 'Auto play';
 				btnAutoPlay.onclick = () => {
 					if (isPlaying) {
@@ -2155,11 +2155,11 @@ export default class GoBoardViewerPlugin extends Plugin {
 							autoPlayInterval = null;
 						}
 						isPlaying = false;
-						btnAutoPlay.textContent = this.settings.compactControls ? PLAY_ICON : '▶ auto play';
+						btnAutoPlay.textContent = this.settings.compactControls ? PLAY_ICON : PLAY_ICON + ' auto play';
 						btnAutoPlay.classList.remove('playing');
 					} else {
 						isPlaying = true;
-						btnAutoPlay.textContent = this.settings.compactControls ? PAUSE_ICON : '⏸ pause';
+						btnAutoPlay.textContent = this.settings.compactControls ? PAUSE_ICON : PAUSE_ICON + ' pause';
 						btnAutoPlay.classList.add('playing');
 
 						autoPlayInterval = setInterval(() => {
@@ -2173,7 +2173,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 									autoPlayInterval = null;
 								}
 								isPlaying = false;
-								btnAutoPlay.textContent = this.settings.compactControls ? PLAY_ICON : '▶ auto play';
+								btnAutoPlay.textContent = this.settings.compactControls ? PLAY_ICON : PLAY_ICON + ' auto play';
 								btnAutoPlay.classList.remove('playing');
 							}
 						}, autoPlaySpeed * 1000);
@@ -2226,7 +2226,7 @@ export default class GoBoardViewerPlugin extends Plugin {
 										autoPlayInterval = null;
 									}
 									isPlaying = false;
-									btnAutoPlay.textContent = this.settings.compactControls ? PLAY_ICON : '▶ auto play';
+									btnAutoPlay.textContent = this.settings.compactControls ? PLAY_ICON : PLAY_ICON + ' auto play';
 									btnAutoPlay.classList.remove('playing');
 								}
 							}, autoPlaySpeed * 1000);
